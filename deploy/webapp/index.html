@@ -1,0 +1,119 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>ApplyPilot</title>
+<style>
+:root{--bg:#f1f3f6;--card:#fff;--fg:#18202c;--muted:#5d6879;--line:#d9dee6;--accent:#2457c5;--afg:#fff;--apply:#1b7f4f;--applyb:#dff3e8;--maybe:#9a6700;--maybeb:#fbefcd;--skip:#6a7280;--skipb:#e7eaef;--warn:#9a4b00;--warnb:#fdebd8}
+@media(prefers-color-scheme:dark){:root{--bg:#12161d;--card:#1a2029;--fg:#e6e9ef;--muted:#9aa4b5;--line:#2b3340;--accent:#7ea3ff;--afg:#0d1320;--apply:#5fd39a;--applyb:#173a2a;--maybe:#e8b64a;--maybeb:#3b2f12;--skip:#a3adbd;--skipb:#262d38;--warn:#f0a85e;--warnb:#3a2a16}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,sans-serif;padding:16px 16px 48px}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+h1{margin:0;font-size:24px}header{display:flex;justify-content:space-between;align-items:center}header a{color:var(--muted);font-size:13px}
+.bar{position:sticky;top:0;background:var(--bg);padding:6px 0;display:flex;flex-direction:column;gap:8px;z-index:2}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button,input,select,textarea{font:inherit;color:inherit}
+.tab,.chip,.a{border:1px solid var(--line);background:var(--card);padding:7px 13px;border-radius:8px;cursor:pointer}
+.chip{border-radius:999px;padding:4px 11px;color:var(--muted)}.tab[aria-selected=true],.a.p{background:var(--accent);color:var(--afg);border-color:var(--accent)}
+.chip[aria-pressed=true]{border-color:var(--accent);color:var(--fg);box-shadow:inset 0 0 0 1px var(--accent)}
+#q,input.t,textarea{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 10px}#q{flex:1;min-width:140px}
+.job{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;grid-template-columns:auto 1fr;gap:6px 14px}
+.job[data-d="Applied manually"]{border-left:4px solid var(--apply)}.job[data-d="Make resume"]{border-left:4px solid var(--maybe)}.job[data-d="Ready to apply"]{border-left:4px solid var(--accent)}.job[data-d=Skip]{border-left:4px solid var(--skip);opacity:.7}
+.sc{font:600 13px ui-monospace,monospace;text-align:center;min-width:46px}.sc b{display:block;font-size:19px}.sc small{color:var(--muted);font:11px system-ui}
+.main{min-width:0;display:flex;flex-direction:column;gap:5px}.title{margin:0;font-size:15px;font-weight:600;overflow-wrap:anywhere}
+.meta{color:var(--muted);font-size:13px;display:flex;gap:2px 10px;flex-wrap:wrap}.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:12px;padding:1px 8px;border-radius:5px;background:var(--skipb);color:var(--muted)}.tag.w{background:var(--warnb);color:var(--warn)}.tag.n{background:var(--applyb);color:var(--apply)}
+details summary{cursor:pointer;color:var(--accent);font-size:13px}details p{margin:6px 0 0;color:var(--muted)}
+.links{display:flex;gap:14px;flex-wrap:wrap}.links a{color:var(--accent);text-decoration:none;font-weight:500}
+.act{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pill{font-size:13px;padding:4px 11px;border-radius:999px;background:var(--maybeb);color:var(--maybe);font-weight:500}.pill.r{background:var(--applyb);color:var(--apply)}.pill.d{background:var(--skipb);color:var(--skip)}.pill.w{background:var(--warnb);color:var(--warn)}
+.box{grid-column:1/-1;border:1px solid var(--line);border-radius:8px;padding:9px 12px;display:flex;flex-direction:column;gap:7px}.box input{width:100%}
+textarea.note{flex:1;min-width:150px;height:34px;resize:vertical}
+.sg{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}.sg h2{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}.grid b{display:block;font:600 20px ui-monospace,monospace}.grid small{color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:8px}
+.empty{color:var(--muted);text-align:center;padding:28px;border:1px dashed var(--line);border-radius:10px}
+@media(max-width:480px){.job{grid-template-columns:1fr}.sc{text-align:left}.sc b{display:inline;margin-right:6px}}
+</style></head><body><div class=wrap>
+<header><h1>ApplyPilot</h1><a href=/logout>Sign out</a></header>
+<div class=bar><div class=row id=tabs></div><div class=row id=chips></div><div class=row><input id=q type=search placeholder="Search role, company, location"></div></div>
+<div id=view></div></div><div id=toast class=toast hidden></div>
+<script>
+const $=id=>document.getElementById(id);let JOBS=[],ST={},S={region:'blr',filter:'none',q:'',view:'list'},open={};
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const safe=u=>/^https?:\/\//i.test(u||'')?u:'';
+function toast(m){const t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,3000)}
+async function api(p,o){const r=await fetch(p,o);if(r.status==401){location='/login';throw 0}return r}
+async function load(){try{JOBS=await (await api('/api/jobs')).json();ST=await (await api('/api/stats')).json();render()}catch(e){}}
+async function patch(url,patch,msg){const r=await api('/api/job',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,patch})});
+ if(!r.ok){toast((await r.json().catch(()=>({}))).error||'Could not save');return}
+ const j=JOBS.find(x=>x.url===url);Object.assign(j,patch.decision!==undefined?{decision:patch.decision}:{},patch.note!==undefined?{note:patch.note}:{},patch.companyUrl!==undefined?{companyUrl:patch.companyUrl}:{},patch.skipReason!==undefined?{skipReason:patch.skipReason}:{},patch.prev!==undefined?{prev:patch.prev}:{},patch.reach!==undefined?{reach:patch.reach}:{});toast(msg||'Saved');render()}
+const DEC=['Make resume','Ready to apply','Applied manually','Skip'];
+function counts(l){const c={all:l.length,none:0,'Make resume':0,'Ready to apply':0,'Applied manually':0,Skip:0};l.forEach(j=>DEC.includes(j.decision)?c[j.decision]++:c.none++);return c}
+function render(){
+ $('tabs').innerHTML=[['blr','Bengaluru'],['uae','Dubai / UAE'],['stats','Scan stats']].map(([k,l])=>`<button class=tab role=tab data-r=${k} aria-selected=${S.region===k}>${l}${k!=='stats'?' ('+JOBS.filter(j=>j.region===k).length+')':''}</button>`).join('');
+ if(S.region==='stats'){$('chips').innerHTML='';$('q').parentElement.hidden=true;return stats()}
+ $('q').parentElement.hidden=false;
+ const reg=JOBS.filter(j=>j.region===S.region),c=counts(reg);
+ $('chips').innerHTML=[['none','Undecided'],['Make resume','Make resume'],['Ready to apply','Ready to apply'],['Applied manually','Applied'],['Skip','Skip'],['all','All']].map(([k,l])=>`<button class=chip data-f="${k}" aria-pressed=${S.filter===k}>${l} <b>${c[k]}</b></button>`).join('');
+ const q=S.q.toLowerCase();
+ const l=reg.filter(j=>(S.filter==='all'||(S.filter==='none'?!DEC.includes(j.decision):j.decision===S.filter))&&(!q||(j.title+' '+j.company+' '+j.location+' '+j.source).toLowerCase().includes(q)));
+ $('view').innerHTML=l.length?'<div style="display:flex;flex-direction:column;gap:10px">'+l.map(card).join('')+'</div>':'<div class=empty>Nothing here.</div>';
+}
+function bt(u,v,l,p){return `<button class="a ${p?'p':''}" data-u="${esc(u)}" data-v="${esc(v)}">${l}</button>`}
+function card(j){
+ const d=j.decision,u=j.url,fresh=j.foundAt&&Date.now()-Date.parse(j.foundAt)<864e5;
+ let a='';
+ if(!d)a=bt(u,'Make resume','Make resume',1)+bt(u,'Applied manually','Mark as applied')+bt(u,'Skip','Skip');
+ else if(d==='Make resume'){const st=j.work==='failed'?`<span class="pill w">Failed: ${esc(j.workMsg||'try again')}</span><button class="a p" data-retry="${esc(u)}">Retry</button>`:j.work==='working'?'<span class=pill>Working on it, about 3 to 6 min…</span>':j.work==='queued'?'<span class=pill>Queued, starts shortly…</span>':'<span class=pill>Starting…</span>';
+  a=st+bt(u,'Applied manually','Mark as applied')+bt(u,'','Move back')+bt(u,'Skip','Skip')}
+ else if(d==='Ready to apply')a='<span class="pill r">Resume ready</span>'+(j.resumeName?`<a class="a p" href="/resume/${encodeURIComponent(j.resumeName)}">Download PDF</a>`:'')+bt(u,'Applied manually','Mark as applied')+bt(u,'Make resume','Redo resume')+bt(u,'Skip','Skip');
+ else if(d==='Applied manually')a='<span class="pill d">Applied</span>'+(j.resumeName?`<a class=a href="/resume/${encodeURIComponent(j.resumeName)}">Resume used</a>`:'')+bt(u,'Ready to apply','Undo');
+ else a=`<span class="pill d">Skipped</span><select class=skr data-u="${esc(u)}"><option value="">Why skip? (optional)</option>${['Low pay','Wrong role','Too senior','Location','Not interested','Other'].map(r=>`<option${j.skipReason===r?' selected':''}>${r}</option>`).join('')}</select><button class=a data-u="${esc(u)}" data-restore="1">Restore</button>`;
+ const links=[safe(u)?`<a href="${esc(u)}" target=_blank rel=noopener>Open job</a>`:'',safe(j.applyUrl)?`<a href="${esc(j.applyUrl)}" target=_blank rel=noopener>Direct apply link</a>`:''].join('');
+ const box=(d==='Skip'||d==='Applied manually')?'':`<div class=box><b>Company apply link</b><input class="t cu" data-u="${esc(u)}" type=url placeholder="Paste the company apply link (from the LinkedIn Apply button)" value="${esc(j.companyUrl)}">${safe(j.companyUrl)?`<a href="${esc(j.companyUrl)}" target=_blank rel=noopener>Open company link</a>`:''}</div>`;
+ const rb=reachBtn(j),ob=outBox(j);
+ return `<article class=job data-d="${esc(d)}"><div class=sc><b>${j.s1}/${j.s2??'-'}</b><small>score</small></div><div class=main><h2 class=title>${esc(j.title)}</h2>
+ <div class=meta><span>${esc(j.company||'Company not shown')}</span><span>${esc(j.location)}</span><span>${esc(j.source)}</span></div>
+ <div class=tags>${fresh?'<span class="tag n">New</span>':''}${j.years?`<span class=tag>asks ${j.years}+ yrs</span>`:''}${j.years>=5?'<span class="tag w">Posting asks 5+ years, check it</span>':''}</div>
+ <details data-k="${esc(u)}"${open[u]?' open':''}><summary>Why it fits</summary><p>${esc(j.why)}</p></details>
+ ${j.changes.length?`<details><summary>What changed in this resume</summary><ul>${j.changes.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>`:''}
+ <div class=links>${links}</div></div>${box}
+ ${ob}<div class=act>${a}${rb}<textarea class=note data-u="${esc(u)}" rows=1 placeholder="Note (optional)">${esc(j.note)}</textarea></div></article>`}
+function reachBtn(j){const u=j.url;if(j.reach==='todo')return '<span class=pill>Reach out by email</span>'+bt2(u,'done','Mark reached out')+bt2(u,'','Cancel reachout');if(j.reach==='done')return '<span class="pill d">Reached out</span>'+bt2(u,'','Undo');return bt2(u,'todo','Reach out too')}
+function bt2(u,v,l){return `<button class=a data-u="${esc(u)}" data-reach="${esc(v)}">${l}</button>`}
+function fmtDay(ms){return new Date(ms).toLocaleDateString(undefined,{day:'numeric',month:'short'})}
+function outBox(j){
+ if(j.reach!=='todo'&&j.reach!=='done'&&!(j.outreach&&j.outreach.body))return '';
+ const u=esc(j.url),c=j.contact||{},o=j.outreach||{},inp=(k,ph,t)=>`<input class="t oc" data-u="${u}" data-k="${k}" type="${t||'text'}" placeholder="${ph}" value="${esc(c[k]||'')}">`;
+ const busy=j.draft==='queued'||j.draft==='working';
+ const status=busy?'<span class=pill>Drafting, about a minute…</span>':j.draft==='failed'?`<span class="pill w">${esc(j.draftMsg||'Draft failed')}</span>`:o.body?'<span class="pill r">Draft ready (not sent)</span>':'';
+ let trk='';if(o.body){trk=o.repliedAt?`<span class="pill r">Replied ${fmtDay(o.repliedAt)}</span><button class=a data-track="${u}" data-k=repliedAt data-val="">Undo</button>`:o.sentAt?`<span class="pill d">Sent ${fmtDay(o.sentAt)}</span><button class="a p" data-track="${u}" data-k=repliedAt data-val=now>Mark replied</button><button class=a data-track="${u}" data-k=sentAt data-val="">Undo sent</button>`:`<button class=a data-track="${u}" data-k=sentAt data-val=now>I sent this email</button>`}
+ const view=o.body?`<details><summary>View draft</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px">To: ${esc(c.email||'')}\nSubject: ${esc(o.subject)}\n\n${esc(o.body)}</pre><button class=a data-copy="${u}">Copy draft</button></details>`:'';
+ return `<div class=box><b>Reach out email</b><div class=row>${inp('name','Contact name')}${inp('position','Contact position')}${inp('email','Contact email','email')}</div><div class=row><button class="a p" data-draft="${u}"${busy?' disabled':''}>${o.body?'Redraft email':'Draft email'}</button>${status}${trk}</div>${view}</div>`}
+function stats(){
+ const s=ST,b=s[S.region==='stats'?'blr':S.region]||{};if(!s.lastScan){$('view').innerHTML='<div class=empty>No scan stats yet.</div>';return}
+ const ago=ms=>{const m=Math.max(0,Math.round(ms/6e4));return m<60?m+' min':Math.floor(m/60)+' h '+m%60+' min'};
+ const p=s.progress||{},now=Date.now(),run=p.running;
+ const reg=r=>{const x=s[r]||{};return `<div class=sg><h2>${r==='blr'?'Bengaluru':'Dubai / UAE'}</h2><div class=grid><div><b>${x.total}</b><small>total jobs</small></div><div><b>${x.scored}</b><small>scored</small></div><div><b>${x.strong}</b><small>strong fit (7+)</small></div><div><b>${x.unscored}</b><small>not scored</small></div></div></div>`};
+ $('view').innerHTML=`<div style="display:flex;flex-direction:column;gap:10px"><div class=sg><h2>Job scan <span style="text-transform:none">every ${s.intervalHours} hours</span></h2><div class=grid>
+ <div><b>${ago(now-Date.parse(s.lastScan))}</b><small>since last full scan</small></div>
+ <div><b>${run?'scanning':ago(Date.parse(s.nextScan)-now)}</b><small>${run?esc(p.phase):'until next scan'}</small></div>
+ <div><b>${s.totalScanned}</b><small>jobs scanned</small></div><div><b>${s.newJobsLastScan}</b><small>new last scan</small></div><div><b>${s.totalStrong}</b><small>strong matches</small></div></div></div>${reg('blr')}${reg('uae')}</div>`}
+async function post(p,b,msg){const r=await api(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});if(!r.ok){toast((await r.json().catch(()=>({}))).error||'Could not save');return false}if(msg)toast(msg);return true}
+document.addEventListener('click',async e=>{
+ const t=e.target.closest('button');if(!t)return;
+ if(t.dataset.retry){if(await post('/api/retry',{url:t.dataset.retry},'Retrying'))load();return}
+ if(t.dataset.reach!==undefined&&t.dataset.u){patch(t.dataset.u,{reach:t.dataset.reach},t.dataset.reach==='todo'?'Added to reach out':'Saved');return}
+ if(t.dataset.draft){const u=t.dataset.draft,j=JOBS.find(x=>x.url===u);if(await post('/api/draft',{url:u},'Drafting…')){j.draft='queued';render();load()}return}
+ if(t.dataset.track){if(await post('/api/outreach',{url:t.dataset.track,key:t.dataset.k,val:t.dataset.val}))load();return}
+ if(t.dataset.copy){const j=JOBS.find(x=>x.url===t.dataset.copy),o=j.outreach||{};navigator.clipboard.writeText('To: '+((j.contact||{}).email||'')+'\nSubject: '+o.subject+'\n\n'+o.body).then(()=>toast('Draft copied'),()=>toast('Copy blocked'));return}
+ if(t.dataset.r){S.region=t.dataset.r;render();return}
+ if(t.dataset.f){S.filter=t.dataset.f;render();return}
+ if(t.dataset.restore){const j=JOBS.find(x=>x.url===t.dataset.u);patch(j.url,{decision:j.prev||'',skipReason:''},'Restored');return}
+ if(t.dataset.u&&t.dataset.v!==undefined){const j=JOBS.find(x=>x.url===t.dataset.u),v=t.dataset.v;const p={decision:v};if(v==='Skip')p.prev=j.decision||'';patch(j.url,p,'Moved to '+(v||'Undecided'))}});
+document.addEventListener('change',async e=>{const t=e.target,u=t.dataset.u;if(!u)return;
+ if(t.classList.contains('oc')){const j=JOBS.find(x=>x.url===u);j.contact=Object.assign({},j.contact,{[t.dataset.k]:t.value.trim()});await post('/api/contact',{url:u,contact:j.contact});return}
+ if(t.classList.contains('cu'))patch(u,{companyUrl:t.value.trim()},'Apply link saved');
+ else if(t.classList.contains('note'))patch(u,{note:t.value});
+ else if(t.classList.contains('skr'))patch(u,{skipReason:t.value},'Reason saved')});
+document.addEventListener('toggle',e=>{if(e.target.dataset&&e.target.dataset.k)open[e.target.dataset.k]=e.target.open},true);
+$('q').addEventListener('input',e=>{S.q=e.target.value;render()});
+load();let tick=0;setInterval(()=>{tick++;const a=document.activeElement;if(a&&(a.tagName==='TEXTAREA'||a.tagName==='INPUT'))return;
+ const busy=JOBS.some(j=>j.work==='queued'||j.work==='working'||j.draft==='queued'||j.draft==='working');if(busy||tick%12===0)load()},5000);
+</script></body></html>
