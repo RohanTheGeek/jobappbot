@@ -1,6 +1,6 @@
 # apply-pilot-Updated
 
-A customized version of [ApplyPilot](https://github.com/Pickle-Pixel/ApplyPilot) v0.3.0, an AI-powered end-to-end job application pipeline (discover → enrich → score → tailor → apply).
+An AI-powered end-to-end job application pipeline (discover → enrich → score → tailor → apply).
 
 ## Changes from upstream
 
